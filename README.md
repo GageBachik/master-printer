@@ -8,7 +8,7 @@ Use:
 Edit `hashlist.json` with all your broken nft mints.
 
 ```bash
-yarn
+yarn install
 ts-node master-printer.ts -k <Path To Authority Wallet For NFTs> -r <Custom RPC Url>
 ```
  
