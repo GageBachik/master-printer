@@ -22,11 +22,33 @@ async function main(args: any) {
   let successes = 0;
   let failures = 0;
   let keypair = process.env.HOME + "/.config/solana/id.json";
+  let splitAuthority = false;
+  let updateAuthority = "";
+  let mintAuthority = "";
   let connection = new Connection("https://api.mainnet-beta.solana.com");
 
   for (let i = 0; i < args.length; i++)
     if (args[i] == "-r") connection = new Connection(args[++i]);
     else if (args[i] == "-k") keypair = args[++i];
+    else if (args[i] == "-u") {
+      updateAuthority = args[++i];
+      splitAuthority = true;
+    } else if (args[i] == "-m") {
+      mintAuthority = args[++i];
+      splitAuthority = true;
+    }
+
+  let updateKeypair: Keypair;
+  let mintKeypair: Keypair;
+
+  if (splitAuthority) {
+    updateKeypair = Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(fs.readFileSync(updateAuthority).toString()))
+    );
+    mintKeypair = Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(fs.readFileSync(mintAuthority).toString()))
+    );
+  }
 
   const wallet = Keypair.fromSecretKey(
     new Uint8Array(JSON.parse(fs.readFileSync(keypair).toString()))
@@ -69,26 +91,53 @@ async function main(args: any) {
           ],
           TOKEN_METADATA_PROGRAM_ID
         );
-        let masterEdition = {
-          edition: masterKey,
-          mint: mint,
-          updateAuthority: wallet.publicKey,
-          mintAuthority: wallet.publicKey,
-          payer: wallet.publicKey,
-          metadata: metadatakey,
-        } as CreateMasterEditionV3InstructionAccounts;
-        let masterArgs = {
-          maxSupply: 1,
-        } as CreateMasterEditionArgs;
-        let masterEditionInstructionArgs = {
-          createMasterEditionArgs: masterArgs,
-        } as CreateMasterEditionInstructionArgs;
-        let ix = createCreateMasterEditionV3Instruction(
-          masterEdition,
-          masterEditionInstructionArgs
-        );
-        const transaction = new Transaction().add(ix);
-        await sendAndConfirmTransaction(connection, transaction, [wallet]);
+        if (splitAuthority) {
+          let masterEdition = {
+            edition: masterKey,
+            mint: mint,
+            updateAuthority: updateKeypair!.publicKey,
+            mintAuthority: mintKeypair!.publicKey,
+            payer: wallet.publicKey,
+            metadata: metadatakey,
+          } as CreateMasterEditionV3InstructionAccounts;
+          let masterArgs = {
+            maxSupply: 1,
+          } as CreateMasterEditionArgs;
+          let masterEditionInstructionArgs = {
+            createMasterEditionArgs: masterArgs,
+          } as CreateMasterEditionInstructionArgs;
+          let ix = createCreateMasterEditionV3Instruction(
+            masterEdition,
+            masterEditionInstructionArgs
+          );
+          const transaction = new Transaction().add(ix);
+          await sendAndConfirmTransaction(connection, transaction, [
+            wallet,
+            updateKeypair!,
+            mintKeypair!,
+          ]);
+        } else {
+          let masterEdition = {
+            edition: masterKey,
+            mint: mint,
+            updateAuthority: wallet.publicKey,
+            mintAuthority: wallet.publicKey,
+            payer: wallet.publicKey,
+            metadata: metadatakey,
+          } as CreateMasterEditionV3InstructionAccounts;
+          let masterArgs = {
+            maxSupply: 1,
+          } as CreateMasterEditionArgs;
+          let masterEditionInstructionArgs = {
+            createMasterEditionArgs: masterArgs,
+          } as CreateMasterEditionInstructionArgs;
+          let ix = createCreateMasterEditionV3Instruction(
+            masterEdition,
+            masterEditionInstructionArgs
+          );
+          const transaction = new Transaction().add(ix);
+          await sendAndConfirmTransaction(connection, transaction, [wallet]);
+        }
         successes++;
       } catch (e) {
         console.log(e);
