@@ -138,7 +138,9 @@ async function main(args: any) {
           const transaction = new Transaction().add(ix);
           await sendAndConfirmTransaction(connection, transaction, [wallet]);
         }
+        config[hash] = true;
         successes++;
+        fs.writeFileSync("./config.json", JSON.stringify(config));
       } catch (e) {
         console.log(e);
         console.log("failed to create master edition for:", hash);
